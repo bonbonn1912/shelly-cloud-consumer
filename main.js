@@ -78,25 +78,29 @@ const getData = async (token, url, deviceId, date) => {
 };
 
 const parse = async (inputDate) => {
-  const date = inputDate || format(new Date(), "yyyy-MM-dd"); // Standardmäßig heutiges Datum
-  const { token, url } = await login();
-
-  devices.forEach(async (value, key) => {
-    const data = await getData(token, url, value, date);
-    let phase1 = data.history[0];
-    let phase2 = data.history[1];
-    let phase3 = data.history[2];
-    const totalReversed1 = sumReversed(phase1);
-    const totalReversed2 = sumReversed(phase2);
-    const totalReversed3 = sumReversed(phase3);
-    const totalKwh = (
-      (totalReversed1 + totalReversed2 + totalReversed3) / 1000
-    ).toFixed(2);
-    await insertOrUpdate(key, date, totalKwh);
-    console.log(`${key} (${value}): ${totalKwh} kWh am ${date}`);
-  });
-  return null;
-};
+    const date = inputDate || format(new Date(), "yyyy-MM-dd"); // Standardmäßig heutiges Datum
+    const { token, url } = await login();
+  
+    await Promise.all(
+      Array.from(devices.entries()).map(async ([key, value]) => {
+        const data = await getData(token, url, value, date);
+        let phase1 = data.history[0];
+        let phase2 = data.history[1];
+        let phase3 = data.history[2];
+        const totalReversed1 = sumReversed(phase1);
+        const totalReversed2 = sumReversed(phase2);
+        const totalReversed3 = sumReversed(phase3);
+        const totalKwh = (
+          (totalReversed1 + totalReversed2 + totalReversed3) / 1000
+        ).toFixed(2);
+        await insertOrUpdate(key, date, totalKwh);
+        console.log(`${key} (${value}): ${totalKwh} kWh am ${date}`);
+      })
+    );
+  
+    process.exit(0); // Programm beenden
+  };
+  
 
 const sumReversed = (array) => {
   return array.reduce((total, obj) => {
@@ -113,6 +117,9 @@ const insertOrUpdate = async (deviceName, date, totalKwh) => {
     );
   };
 
+  const inputDate = process.argv[2];
+parse(inputDate).then(data => {
+    console.log("done")
+});
 
-const inputDate = process.argv[2]; 
-parse(inputDate);
+
